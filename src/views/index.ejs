@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAML SP Tester for Entra External ID</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="bg-glow bg-glow-a"></div>
+    <div class="bg-glow bg-glow-b"></div>
+
+    <main class="layout">
+      <section class="card intro">
+        <p class="eyebrow">SAML SP Test Utility</p>
+        <h1>Inspect Entra External ID SAML Assertions</h1>
+        <p>
+          Enter your Entra External ID domain and app client_id, trigger SP-initiated sign-on,
+          then inspect the raw SAML token returned to this app.
+        </p>
+      </section>
+
+      <section class="card form-card">
+        <h2>Start SAML Sign-On</h2>
+
+        <% if (error) { %>
+          <div class="alert error"><%= error %></div>
+        <% } %>
+
+        <% if (message) { %>
+          <div class="alert success"><%= message %></div>
+        <% } %>
+
+        <form method="post" action="/start" class="form-grid">
+          <label>
+            External ID domain
+            <input
+              id="domainInput"
+              name="domain"
+              placeholder="contoso or contoso.ciamlogin.com"
+              value="<%= form.domain || '' %>"
+              required
+            />
+          </label>
+
+          <label>
+            <span class="field-label-row">
+              <span>Client ID</span>
+              <a
+                class="field-help-link"
+                href="/README#register-client-id-in-entra-external-id"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                How to register client_id
+              </a>
+            </span>
+            <input
+              id="clientIdInput"
+              name="clientId"
+              placeholder="00000000-0000-0000-0000-000000000000"
+              value="<%= form.clientId || '' %>"
+              required
+            />
+          </label>
+
+          <label>
+            Tenant domain (auto-derived if empty)
+            <input
+              id="tenantDomainInput"
+              name="tenantDomain"
+              placeholder="contoso.onmicrosoft.com"
+              value="<%= form.tenantDomain || '' %>"
+            />
+          </label>
+
+          <button type="submit">Send SAML AuthnRequest</button>
+        </form>
+
+        <p class="note">
+          Metadata URL used:
+          <code>
+            https://{domain}/{tenantDomain}/federationmetadata/2007-06/federationmetadata.xml?appid={client_id}
+          </code>
+        </p>
+
+        <div id="metadataPanel" class="metadata-panel hidden">
+          <h3>Metadata Preview</h3>
+          <p id="metadataHint" class="note">Type domain and client ID to load metadata previews.</p>
+
+          <div class="tabs" role="tablist" aria-label="Metadata tabs">
+            <button id="idpTab" class="tab active" type="button" role="tab" aria-selected="true" data-target="idpPane">
+              Identity Provider Metadata
+            </button>
+            <button id="spTab" class="tab" type="button" role="tab" aria-selected="false" data-target="spPane">
+              Service Provider Metadata
+            </button>
+          </div>
+
+          <div id="idpPane" class="tab-pane active" role="tabpanel">
+            <pre id="idpMetadataPre"></pre>
+          </div>
+          <div id="spPane" class="tab-pane" role="tabpanel">
+            <pre id="spMetadataPre"></pre>
+          </div>
+        </div>
+      </section>
+
+      <% if (result) { %>
+        <section class="card result-card">
+          <h2>Response Summary</h2>
+          <dl class="summary-grid">
+            <dt>InResponseTo</dt>
+            <dd><%= result.postedInResponseTo || '(none)' %></dd>
+
+            <dt>RelayState</dt>
+            <dd><%= result.postedRelayState || '(none)' %></dd>
+
+            <dt>Request ID match</dt>
+            <dd><%= result.requestMatched ? 'yes' : 'no' %></dd>
+
+            <dt>RelayState match</dt>
+            <dd><%= result.relayMatched ? 'yes' : 'no' %></dd>
+
+            <dt>Response Issuer</dt>
+            <dd><%= result.parsed.responseIssuer || '(none)' %></dd>
+
+            <dt>Assertion Issuer</dt>
+            <dd><%= result.parsed.assertionIssuer || '(none)' %></dd>
+
+            <dt>NameID</dt>
+            <dd><%= result.parsed.nameId || '(none)' %></dd>
+
+            <dt>Audience</dt>
+            <dd><%= result.parsed.audience || '(none)' %></dd>
+
+            <dt>AuthnInstant</dt>
+            <dd><%= result.parsed.authnInstant || '(none)' %></dd>
+
+            <dt>NotBefore</dt>
+            <dd><%= result.parsed.notBefore || '(none)' %></dd>
+
+            <dt>NotOnOrAfter</dt>
+            <dd><%= result.parsed.notOnOrAfter || '(none)' %></dd>
+          </dl>
+        </section>
+
+        <section class="card attrs-card">
+          <h2>Attributes</h2>
+          <% if (!result.parsed.attributes.length) { %>
+            <p>No attribute statements found.</p>
+          <% } %>
+          <% result.parsed.attributes.forEach((attr) => { %>
+            <div class="attr-row">
+              <h3><%= attr.name %></h3>
+              <ul>
+                <% attr.values.forEach((v) => { %>
+                  <li><%= v %></li>
+                <% }) %>
+              </ul>
+            </div>
+          <% }) %>
+        </section>
+
+        <section class="card xml-card">
+          <h2>Raw SAML Response XML</h2>
+          <pre id="samlResponsePre"><%= result.samlXml %></pre>
+        </section>
+      <% } %>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

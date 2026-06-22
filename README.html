@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SAML SP Tester for Entra External ID - README</title>
+    <style>
+      :root {
+        --bg: #f6f4ee;
+        --ink: #1b2b2c;
+        --card: #ffffff;
+        --line: #d9e0e0;
+        --accent: #0f766e;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: linear-gradient(180deg, #f9f6ef 0%, #eef8f5 100%);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        line-height: 1.55;
+      }
+
+      .wrap {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 28px 16px 42px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 18px;
+        box-shadow: 0 8px 20px rgba(18, 40, 38, 0.08);
+      }
+
+      h1,
+      h2 {
+        font-family: "Space Grotesk", "Trebuchet MS", sans-serif;
+      }
+
+      h1 {
+        margin-top: 0;
+      }
+
+      h2 {
+        margin-top: 26px;
+        margin-bottom: 8px;
+      }
+
+      a {
+        color: var(--accent);
+      }
+
+      code,
+      pre {
+        font-family: "IBM Plex Mono", Consolas, monospace;
+      }
+
+      pre {
+        margin: 0;
+        background: #fffefb;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        overflow: auto;
+        white-space: pre-wrap;
+      }
+
+      ul {
+        padding-left: 22px;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="wrap">
+      <section class="card">
+        <h1 id="register-client-id-in-entra-external-id">SAML SP Tester for Entra External ID</h1>
+
+        <h2>Register Client ID In Entra External ID</h2>
+
+        <p>
+          Download script:
+          <a href="/scripts/Configure-EntraExternalIdSamlTestApp.ps1">Configure-EntraExternalIdSamlTestApp.ps1</a>
+        </p>
+
+        <p>Run with generic parameters:</p>
+        <pre>.\scripts\Configure-EntraExternalIdSamlTestApp.ps1 `
+  -TenantId "&lt;your-tenant-id-guid&gt;" `
+  -TenantDomain "&lt;your-tenant&gt;.onmicrosoft.com" `
+  -ExternalIdDomain "&lt;your-tenant&gt;.ciamlogin.com" `
+  -AppDisplayName "SAML SP Tester" `
+  -BaseUrl "http://localhost:3000"</pre>
+
+        <p>Small test app that behaves like a simple SAML Service Provider (SP):</p>
+        <ul>
+          <li>Accepts <code>domain</code> + <code>client_id</code> (and optional <code>tenantDomain</code>) from the UI.</li>
+          <li>Builds federation metadata URL for Entra External ID.</li>
+          <li>Sends an SP-initiated SAML AuthnRequest to the IdP.</li>
+          <li>Receives SAMLResponse at <code>/acs</code> and displays decoded XML plus common assertion fields.</li>
+        </ul>
+
+        <h2>Quick Start</h2>
+        <ol>
+          <li>Install dependencies: <code>npm install</code></li>
+          <li>Run: <code>npm start</code></li>
+          <li>Open: <code>http://localhost:3000</code></li>
+        </ol>
+
+        <h2>Runtime Settings</h2>
+        <ul>
+          <li><code>PORT</code> (optional): defaults to <code>3000</code></li>
+          <li><code>BASE_URL</code> (optional): force ACS base URL, for example <code>https://myapp.example.com</code></li>
+          <li><code>SESSION_SECRET</code> (recommended in non-dev)</li>
+        </ul>
+
+        <h2>Notes</h2>
+        <ul>
+          <li>This utility is intended for inspection/testing.</li>
+          <li>It currently does not validate XML signatures or decrypt encrypted assertions.</li>
+          <li>The app attempts tenant domain auto-derivation from domain (<code>contoso.ciamlogin.com</code> -&gt; <code>contoso.onmicrosoft.com</code>).</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
