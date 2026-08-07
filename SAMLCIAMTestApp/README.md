@@ -1,6 +1,6 @@
 # SAML SP Tester for Entra External ID
 
-This tutorial will show you how to test Entra External ID as a SAML Identity Provider.  The web app has already been deployed to https://aka.ms/samlciamtestapp .  To utilize in your own Entra External ID tenant, use the below powershell script to register the test app in your tennat and then populate the client id and tenant info with your tenant.
+This tutorial will show you how to test Entra External ID as a SAML Identity Provider.  The web app has already been deployed to https://aka.ms/samlciamtestapp .  To utilize in your own Entra External ID tenant, use the below powershell script to register the test app in your tenant and then populate the client id and tenant info with your tenant to sign in and inspect the SAML Response.
 
 ## Step 1. Register Client ID In Entra External ID
 
