@@ -14,7 +14,7 @@ Run with generic parameters:
 	-TenantDomain "<your-tenant>.onmicrosoft.com" `
 	-ExternalIdDomain "<your-tenant>.ciamlogin.com" `
 	-AppDisplayName "SAML SP Tester" `
-	-BaseUrl "http://localhost:3000"
+	-BaseUrl ""https://samlciam-ca-53525.azurewebsites.net""
 ```
 
 Small test app that behaves like a simple SAML Service Provider (SP):
