@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Entra External ID — User Explorer</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2064%2064'%3E%3Ccircle%20cx='32'%20cy='32'%20r='30'%20fill='%230f6cbd'/%3E%3Ccircle%20cx='35'%20cy='15'%20r='5'%20fill='%23fff'/%3E%3Cg%20fill='none'%20stroke='%23fff'%20stroke-width='4'%20stroke-linecap='round'%20stroke-linejoin='round'%3E%3Cpath%20d='M34%2021%20L30%2038'/%3E%3Cpath%20d='M30%2038%20L39%2046'/%3E%3Cpath%20d='M30%2038%20L23%2050'/%3E%3Cpath%20d='M33%2025%20L41%2021'/%3E%3Cpath%20d='M33%2025%20L26%2030'/%3E%3C/g%3E%3C/svg%3E" />
+<style>
+  :root {
+    --bg: #f3f2f1;
+    --card: #ffffff;
+    --border: #e1dfdd;
+    --text: #201f1e;
+    --muted: #605e5c;
+    --brand: #0f6cbd;
+    --brand-dark: #115ea3;
+    --ok: #0e700e;
+    --ok-bg: #dff6dd;
+    --warn: #8a5a00;
+    --warn-bg: #fff4ce;
+    --err: #a4262c;
+    --err-bg: #fde7e9;
+    --admin: #5c2e91;
+    --admin-bg: #efe4fb;
+    --pwd: #0f6cbd;
+    --pwd-bg: #e5f1fb;
+    --otp: #007a7a;
+    --otp-bg: #d9f2f2;
+    --fed: #b34700;
+    --fed-bg: #fbe9dd;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+  }
+  header {
+    background: linear-gradient(90deg, #0f6cbd, #115ea3);
+    color: #fff;
+    padding: 16px 24px;
+  }
+  header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: 0.9; }
+  .wrap { max-width: none; margin: 0; padding: 16px 24px 60px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+    margin-bottom: 18px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  }
+  .card h2 { margin: 0 0 12px; font-size: 15px; font-weight: 600; }
+  label { display: block; font-weight: 600; margin-bottom: 4px; font-size: 13px; }
+  .hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+  textarea, input[type=text], input[type=password], input[type=email], select {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    background: #fff;
+    color: var(--text);
+  }
+  textarea { resize: vertical; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
+  textarea:focus, input:focus, select:focus { outline: 2px solid var(--brand); border-color: var(--brand); }
+  button {
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:hover { background: var(--brand-dark); }
+  button.secondary { background: #fff; color: var(--brand); border: 1px solid var(--brand); }
+  button.secondary:hover { background: #f0f6fc; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  a { color: var(--brand); }
+  .row { display: flex; gap: 12px; flex-wrap: wrap; align-items: flex-end; }
+  .row > div { flex: 1; min-width: 180px; }
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .grow { flex: 1; }
+
+  /* Token status */
+  .status { font-size: 13px; padding: 8px 12px; border-radius: 4px; margin-top: 10px; display: none; }
+  .status.show { display: block; }
+  .status.ok { background: var(--ok-bg); color: var(--ok); }
+  .status.warn { background: var(--warn-bg); color: var(--warn); }
+  .status.err { background: var(--err-bg); color: var(--err); }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid var(--border); margin-bottom: 18px; }
+  .tab {
+    background: none;
+    color: var(--muted);
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    padding: 10px 18px;
+    font-weight: 600;
+    margin-bottom: -2px;
+  }
+  .tab:hover { background: #eef3f8; color: var(--brand); }
+  .tab.active { color: var(--brand); border-bottom-color: var(--brand); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Table */
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: #faf9f8; font-weight: 600; position: sticky; top: 0; }
+  tr:hover td { background: #f8fbfe; }
+  .mono { font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; }
+  .copy-id { cursor: pointer; color: var(--muted); border: none; background: none; padding: 0 0 0 6px; font-size: 12px; }
+  .copy-id:hover { color: var(--brand); background: none; }
+
+  /* Badges */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .b-admin { background: var(--admin-bg); color: var(--admin); }
+  .b-pwd { background: var(--pwd-bg); color: var(--pwd); }
+  .b-otp { background: var(--otp-bg); color: var(--otp); }
+  .b-fed { background: var(--fed-bg); color: var(--fed); }
+  .b-guest { background: #dfe9f5; color: #274b73; }
+  .b-unknown { background: #edebe9; color: var(--muted); }
+  .b-disabled { background: var(--err-bg); color: var(--err); }
+
+  .id-line { margin-bottom: 3px; }
+  .id-line:last-child { margin-bottom: 0; }
+  .id-key { color: var(--muted); }
+
+  .links a { margin-right: 10px; white-space: nowrap; }
+
+  .count { color: var(--muted); font-size: 13px; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #c7e0f4; border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .filterbox { max-width: 320px; }
+
+  /* Create form */
+  .type-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .type-opt {
+    border: 2px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .type-opt:hover { border-color: var(--brand); background: #f8fbfe; }
+  .type-opt.sel { border-color: var(--brand); background: #eef6fd; }
+  .type-opt .t-title { font-weight: 600; margin-bottom: 4px; }
+  .type-opt .t-desc { font-size: 12px; color: var(--muted); }
+  .field { margin-bottom: 14px; }
+  .hidden { display: none; }
+  pre.result {
+    background: #1e1e1e; color: #d4d4d4; padding: 12px; border-radius: 6px;
+    font-family: "Cascadia Code", Consolas, monospace; font-size: 12px;
+    overflow-x: auto; white-space: pre-wrap; word-break: break-all; margin-top: 12px;
+  }
+  .req::after { content: " *"; color: var(--err); }
+
+  /* Compact token bar */
+  .token-card { padding: 8px 12px; margin-bottom: 14px; }
+  .token-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .token-input { flex: 1 1 320px; font-family: "Cascadia Code", Consolas, monospace; font-size: 12px; padding: 6px 8px; }
+  .tenant-input { flex: 0 0 230px; font-size: 12px; padding: 6px 8px; }
+  .token-card button { padding: 6px 12px; font-size: 12px; }
+  .ge-link { font-size: 12px; white-space: nowrap; }
+  .token-card .status { font-size: 12px; padding: 6px 10px; margin-top: 6px; }
+
+  /* Sortable / filterable table headers */
+  th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+  th.sortable:hover { color: var(--brand); }
+  .arrow { color: var(--brand); font-size: 11px; margin-left: 2px; }
+  tr.filter-row th { padding: 4px 6px; background: #f3f2f1; position: sticky; top: 37px; z-index: 1; }
+  .col-filter { width: 100%; padding: 4px 6px; font-size: 12px; font-weight: 400; }
+  td.nowrap, th.nowrap { white-space: nowrap; }
+
+  /* Tools column + editor */
+  .links a.del-user { color: var(--err); }
+  .links a.del-user:hover { color: #7a1a1f; }
+  .editor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin-bottom: 8px; }
+  .editor-grid .field { margin-bottom: 0; }
+  h3 { font-size: 14px; margin: 20px 0 10px; }
+  .id-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; flex-wrap: wrap; }
+  .id-row .id-signintype { flex: 0 0 190px; }
+  .id-row .id-issuer, .id-row .id-issuerid { flex: 1 1 180px; }
+  .id-row .id-remove { flex: 0 0 auto; padding: 6px 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Entra External ID — User Explorer</h1>
+  <p>List and create users in your Entra External ID (CIAM) tenant via Microsoft Graph.</p>
+</header>
+
+<div class="wrap">
+
+  <!-- Token -->
+  <div class="card token-card">
+    <div class="token-row">
+      <input type="text" id="token" class="token-input" spellcheck="false" placeholder="Paste Microsoft Graph access token…" />
+      <input type="text" id="tenantDomain" class="tenant-input" value="ciamjafritts.onmicrosoft.com" title="Tenant domain" />
+      <button id="validateBtn" class="secondary">Validate</button>
+      <a href="https://aka.ms/ge" target="_blank" rel="noopener" class="ge-link" title="Get a token from Graph Explorer">aka.ms/ge ↗</a>
+    </div>
+    <div id="tokenStatus" class="status"></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" data-tab="list">User list</button>
+    <button class="tab" data-tab="create">Create new users</button>
+    <button class="tab" data-tab="editor">User editor</button>
+  </div>
+
+  <!-- ============ LIST PANEL ============ -->
+  <div class="panel active" id="panel-list">
+    <div class="card">
+      <div class="toolbar">
+        <button id="loadBtn">Load users</button>
+        <input type="text" id="filter" class="filterbox" placeholder="Filter (name, UPN, email, id, type)…" />
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;white-space:nowrap;">
+          <input type="checkbox" id="extOnly" style="width:auto;" /> Only with extension attributes
+        </label>
+        <div class="grow"></div>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="table-scroll">
+        <table id="usersTable">
+          <thead id="usersHead"></thead>
+          <tbody id="usersBody">
+            <tr><td colspan="7" style="color:var(--muted);">No users loaded. Paste a token above and click <strong>Load users</strong>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CREATE PANEL ============ -->
+  <div class="panel" id="panel-create">
+    <div class="card">
+      <h2>1. Choose the type of user to create</h2>
+      <div class="type-grid" id="typeGrid">
+        <div class="type-opt" data-type="admin">
+          <div class="t-title"><span class="badge b-admin">Admin</span></div>
+          <div class="t-desc">Standard Entra work/school account with username + password. For tenant administrators.</div>
+        </div>
+        <div class="type-opt" data-type="password">
+          <div class="t-title"><span class="badge b-pwd">Customer · Email + Password</span></div>
+          <div class="t-desc">Local consumer account that signs in with an email address and password.</div>
+        </div>
+        <div class="type-opt" data-type="otp">
+          <div class="t-title"><span class="badge b-otp">Customer · Email + OTP</span></div>
+          <div class="t-desc">Local consumer account that signs in with a one-time passcode sent to email (no password).</div>
+        </div>
+        <div class="type-opt" data-type="federated">
+          <div class="t-title"><span class="badge b-fed">Customer · Federated IdP</span></div>
+          <div class="t-desc">Consumer account linked to an external identity provider (Google, Facebook, SAML/OIDC).</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="createForm">
+      <h2 id="formTitle">2. Enter details</h2>
+
+      <!-- Admin fields -->
+      <div class="typefields" data-for="admin">
+        <div class="field">
+          <label class="req" for="admin-upnprefix">Username (UPN prefix)</label>
+          <div class="row">
+            <div><input type="text" id="admin-upnprefix" placeholder="e.g. adminuser" /></div>
+            <div style="flex:0 0 auto; display:flex; align-items:center; color:var(--muted);">
+              @<span id="admin-domain-lbl">ciamjafritts.onmicrosoft.com</span>
+            </div>
+          </div>
+        </div>
+        <div class="field">
+          <label for="admin-display">Display name <span class="hint">(defaults to username)</span></label>
+          <input type="text" id="admin-display" placeholder="e.g. Admin User" />
+        </div>
+        <div class="field">
+          <label class="req" for="admin-pwd">Password</label>
+          <input type="text" id="admin-pwd" placeholder="Initial password" />
+        </div>
+        <div class="field">
+          <label style="display:flex; align-items:center; gap:8px; font-weight:400;">
+            <input type="checkbox" id="admin-forcechange" checked style="width:auto;" />
+            Force password change at next sign-in
+          </label>
+        </div>
+      </div>
+
+      <!-- Email + Password fields -->
+      <div class="typefields hidden" data-for="password">
+        <div class="field">
+          <label class="req" for="pwd-email">Email address</label>
+          <input type="email" id="pwd-email" placeholder="user@example.com" />
+        </div>
+        <div class="field">
+          <label for="pwd-display">Display name <span class="hint">(defaults to email local-part)</span></label>
+          <input type="text" id="pwd-display" placeholder="e.g. Jane Customer" />
+        </div>
+        <div class="field">
+          <label class="req" for="pwd-pwd">Password</label>
+          <input type="text" id="pwd-pwd" placeholder="Password" />
+        </div>
+      </div>
+
+      <!-- Email + OTP fields -->
+      <div class="typefields hidden" data-for="otp">
+        <div class="field">
+          <label class="req" for="otp-email">Email address</label>
+          <input type="email" id="otp-email" placeholder="user@example.com" />
+        </div>
+        <div class="field">
+          <label for="otp-display">Display name <span class="hint">(defaults to email local-part)</span></label>
+          <input type="text" id="otp-display" placeholder="e.g. Jane Customer" />
+        </div>
+        <p class="hint">No password is set — the user signs in with a one-time passcode emailed to this address.</p>
+      </div>
+
+      <!-- Federated fields -->
+      <div class="typefields hidden" data-for="federated">
+        <div class="field">
+          <label class="req" for="fed-issuer">Issuer <span class="hint">(the IdP domain, e.g. google.com, facebook.com, or your SAML/OIDC issuer URI)</span></label>
+          <input type="text" id="fed-issuer" placeholder="e.g. google.com" />
+        </div>
+        <div class="field">
+          <label class="req" for="fed-issuerid">Issuer-assigned ID <span class="hint">(the user's unique ID at that IdP)</span></label>
+          <input type="text" id="fed-issuerid" placeholder="e.g. 1234567890 or user@example.com" />
+        </div>
+        <div class="field">
+          <label class="req" for="fed-email">Email address <span class="hint">(stored as mail)</span></label>
+          <input type="email" id="fed-email" placeholder="user@example.com" />
+        </div>
+        <div class="field">
+          <label for="fed-display">Display name <span class="hint">(defaults to email local-part)</span></label>
+          <input type="text" id="fed-display" placeholder="e.g. Jane Customer" />
+        </div>
+      </div>
+
+      <!-- Extension attribute (all types) -->
+      <div class="field">
+        <label for="create-ext-name">Extension attribute <span class="hint">(optional — directory extension registered in tenant)</span></label>
+        <div class="row">
+          <div style="flex:1;"><select id="create-ext-name"><option value="">— none —</option></select></div>
+          <div style="flex:1;"><input type="text" id="create-ext-value" placeholder="Value" /></div>
+        </div>
+      </div>
+
+      <div class="toolbar" style="margin-top:8px;">
+        <button id="createBtn">Create user</button>
+        <button class="secondary" id="previewBtn">Preview payload</button>
+        <select id="createPreviewFormat" style="width:auto;" title="Choose preview format">
+          <option value="rest">as Graph REST payload</option>
+          <option value="powershell">as PowerShell (Microsoft.Graph SDK)</option>
+        </select>
+      </div>
+      <pre class="result hidden" id="createResult"></pre>
+    </div>
+  </div>
+
+  <!-- ============ EDITOR PANEL ============ -->
+  <div class="panel" id="panel-editor">
+    <div class="card">
+      <div id="editorEmpty">Select <strong>Edit User</strong> from the <em>Tools</em> column on the <strong>User list</strong> tab to load a user here.</div>
+      <div id="editorLoading" class="hidden"><span class="spinner"></span> Loading user…</div>
+      <div id="editorContent" class="hidden">
+        <h2 style="margin-bottom:4px;">Editing: <span id="editUserName"></span></h2>
+        <div class="hint mono" id="editUserId" style="margin-bottom:16px;"></div>
+
+        <div class="editor-grid">
+          <div class="field"><label class="req" for="edit-displayName">Display name</label><input type="text" id="edit-displayName" /></div>
+          <div class="field"><label for="edit-givenName">Given name</label><input type="text" id="edit-givenName" /></div>
+          <div class="field"><label for="edit-surname">Surname</label><input type="text" id="edit-surname" /></div>
+          <div class="field"><label for="edit-mail">Mail</label><input type="email" id="edit-mail" /></div>
+          <div class="field"><label class="req" for="edit-mailNickname">Mail nickname</label><input type="text" id="edit-mailNickname" /></div>
+          <div class="field"><label class="req" for="edit-upn">User principal name</label><input type="text" id="edit-upn" /></div>
+          <div class="field">
+            <label>Status</label>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+              <input type="checkbox" id="edit-accountEnabled" style="width:auto;" /> Account enabled
+            </label>
+          </div>
+        </div>
+
+        <h3>Identities <span class="hint">— sign-in methods for this user; add or remove types below</span></h3>
+        <div id="identitiesEditor"></div>
+        <div class="toolbar" style="margin-top:6px;">
+          <select id="addIdentityPreset" style="width:auto;">
+            <option value="password">Email + Password (emailAddress)</option>
+            <option value="otp">Email + OTP (federated / mail)</option>
+            <option value="federated">Federated IdP (federated)</option>
+            <option value="blank">Blank</option>
+          </select>
+          <button class="secondary" id="addIdentityBtn" type="button">+ Add identity</button>
+        </div>
+
+        <h3>Extension attribute <span class="hint">— populate a directory extension registered in tenant</span></h3>
+        <div class="field">
+          <div class="row">
+            <div style="flex:1;"><select id="edit-ext-name"><option value="">— none —</option></select></div>
+            <div style="flex:1;"><input type="text" id="edit-ext-value" placeholder="Value" /></div>
+          </div>
+        </div>
+
+        <h3>Password &amp; policies <span class="hint">— reset the password and control password policies</span></h3>
+        <div class="field">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+            <input type="checkbox" id="edit-pwd-enable" style="width:auto;" /> Update password (set a new passwordProfile)
+          </label>
+        </div>
+        <div class="editor-grid" id="edit-pwd-fields" style="opacity:.5;">
+          <div class="field">
+            <label for="edit-pwd-value">New password</label>
+            <input type="text" id="edit-pwd-value" placeholder="Enter new password" autocomplete="off" disabled />
+          </div>
+          <div class="field">
+            <label>Sign-in options</label>
+            <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+              <input type="checkbox" id="edit-pwd-force" style="width:auto;" disabled /> forceChangePasswordNextSignIn
+            </label>
+          </div>
+        </div>
+        <div class="field">
+          <label>Password policies <span class="hint">(passwordPolicies)</span></label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+            <input type="checkbox" id="edit-pol-noexpire" style="width:auto;" /> DisablePasswordExpiration
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;font-weight:400;">
+            <input type="checkbox" id="edit-pol-nostrong" style="width:auto;" /> DisableStrongPassword
+          </label>
+        </div>
+
+        <div class="toolbar" style="margin-top:16px;">
+          <button id="saveUserBtn">Save changes</button>
+          <button class="secondary" id="reloadUserBtn">Reload</button>
+          <button class="secondary" id="previewPatchBtn">Preview PATCH</button>
+          <select id="editPreviewFormat" style="width:auto;" title="Choose preview format">
+            <option value="rest">as Graph REST payload</option>
+            <option value="powershell">as PowerShell (Microsoft.Graph SDK)</option>
+          </select>
+        </div>
+        <pre class="result hidden" id="editResult"></pre>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+const GRAPH = "https://graph.microsoft.com/v1.0";
+
+// ---------- helpers ----------
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+function getToken() {
+  return $("token").value.trim();
+}
+function tenantDomain() {
+  return $("tenantDomain").value.trim();
+}
+
+function decodeJwt(tok) {
+  try {
+    const p = tok.split(".")[1];
+    const json = atob(p.replace(/-/g, "+").replace(/_/g, "/"));
+    return JSON.parse(decodeURIComponent(escape(json)));
+  } catch { return null; }
+}
+
+function showStatus(el, cls, html) {
+  el.className = "status show " + cls;
+  el.innerHTML = html;
+}
+
+async function graphFetch(url, opts = {}) {
+  const tok = getToken();
+  if (!tok) throw new Error("No access token. Paste a token above.");
+  const res = await fetch(url, {
+    ...opts,
+    headers: {
+      "Authorization": "Bearer " + tok,
+      "Content-Type": "application/json",
+      ...(opts.headers || {})
+    }
+  });
+  const text = await res.text();
+  let data = null;
+  try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text }; }
+  if (!res.ok) {
+    const msg = data?.error?.message || res.statusText || ("HTTP " + res.status);
+    const err = new Error(msg);
+    err.status = res.status;
+    err.body = data;
+    throw err;
+  }
+  return data;
+}
+
+// ---------- token validation ----------
+$("validateBtn").addEventListener("click", () => {
+  const tok = getToken();
+  const el = $("tokenStatus");
+  if (!tok) { showStatus(el, "err", "Paste a token first."); return; }
+  const claims = decodeJwt(tok);
+  if (!claims) { showStatus(el, "warn", "Could not decode token as a JWT, but it may still work. Try loading users."); return; }
+  const now = Math.floor(Date.now() / 1000);
+  const exp = claims.exp || 0;
+  const aud = claims.aud || "";
+  const scopes = claims.scp || "";
+  const tenant = claims.tid || "";
+  const upn = claims.upn || claims.preferred_username || claims.unique_name || "unknown";
+  const expired = exp && exp < now;
+  const mins = exp ? Math.round((exp - now) / 60) : 0;
+
+  let cls = "ok", parts = [];
+  if (expired) { cls = "err"; parts.push("<strong>Token expired.</strong> Get a fresh one from Graph Explorer."); }
+  else { parts.push("<strong>Token looks valid.</strong>"); }
+
+  parts.push("Signed in as <strong>" + esc(upn) + "</strong>");
+  parts.push("Tenant <code>" + esc(tenant) + "</code>");
+  if (exp && !expired) parts.push("Expires in ~" + mins + " min");
+  if (scopes) parts.push("Scopes: <code>" + esc(scopes) + "</code>");
+  // persist a still-valid token so it's reused next time the page opens
+  saveToken(expired ? null : tok);
+  showStatus(el, cls, parts.join("<br>"));
+});
+
+// keep the admin domain label + tenant synced
+$("tenantDomain").addEventListener("input", () => {
+  $("admin-domain-lbl").textContent = tenantDomain();
+});
+
+// ---------- tabs ----------
+document.querySelectorAll(".tab").forEach(tab => {
+  tab.addEventListener("click", () => activateTab(tab.dataset.tab));
+});
+function activateTab(name) {
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.tab === name));
+  document.querySelectorAll(".panel").forEach(p => p.classList.toggle("active", p.id === "panel-" + name));
+}
+
+// ---------- classify user ----------
+function classify(user) {
+  const ids = Array.isArray(user.identities) ? user.identities : [];
+  const federated = ids.filter(i => (i.signInType || "").toLowerCase() === "federated");
+  const signInTypes = ids.map(i => (i.signInType || "").toLowerCase());
+
+  // B2B guests (invited external Entra users) must not be treated as customer
+  // federated identities.
+  const isB2B = (user.creationType || "").toLowerCase() === "invitation" ||
+    ids.some(i => (i.issuer || "").toLowerCase() === "externalazuread");
+  if (isB2B)
+    return { label: "B2B Guest", cls: "b-guest" };
+
+  if (federated.some(i => (i.issuer || "").toLowerCase() === "mail"))
+    return { label: "Customer · Email + OTP", cls: "b-otp" };
+  if (federated.length)
+    return { label: "Customer · Federated IdP", cls: "b-fed" };
+  if (signInTypes.includes("emailaddress"))
+    return { label: "Customer · Email + Password", cls: "b-pwd" };
+  if (signInTypes.includes("userprincipalname"))
+    return { label: "Admin", cls: "b-admin" };
+  return { label: "Unknown / Other", cls: "b-unknown" };
+}
+
+// ---------- load users ----------
+let allUsers = [];
+let sortState = { key: "createdDateTime", dir: "desc" };
+const colFilters = {};
+
+const columns = [
+  { key: "displayName",     label: "Display name",         sortable: true,  filter: true },
+  { key: "type",            label: "Account type",         sortable: true,  filter: true },
+  { key: "id",              label: "Object ID",            sortable: true,  filter: true },
+  { key: "upn",             label: "User principal name",  sortable: true,  filter: true },
+  { key: "identities",      label: "Identities",           sortable: false, filter: true },
+  { key: "extensions",      label: "Extension attributes", sortable: false, filter: true },
+  { key: "createdDateTime", label: "Created (UTC)",        sortable: true,  filter: true },
+  { key: "links",           label: "Tools",                sortable: false, filter: false },
+];
+
+// The "extensions" column is only shown when the "Only with extension attributes" box is checked.
+function extColumnVisible() {
+  const cb = $("extOnly");
+  return !!(cb && cb.checked);
+}
+function visibleColumns() {
+  return columns.filter(c => c.key !== "extensions" || extColumnVisible());
+}
+
+function idString(u) {
+  return (u.identities || []).map(i => [i.signInType, i.issuer, i.issuerAssignedId].join(" ")).join(" ");
+}
+// Directory-extension attribute names discovered at load time (extension_<appid>_<name>)
+let extensionAttrNames = [];
+function shortExtName(name) {
+  return String(name).replace(/^extension_[0-9a-fA-F]{32}_/, "");
+}
+function userExtensions(u) {
+  const out = [];
+  for (const name of extensionAttrNames) {
+    const v = u[name];
+    if (v !== undefined && v !== null && v !== "") {
+      out.push({ name, shortName: shortExtName(name), value: v });
+    }
+  }
+  return out;
+}
+function extString(u) {
+  return userExtensions(u).map(e => e.shortName + "=" + e.value).join(" ");
+}
+function fmtUtc(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const p = n => String(n).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate()) + " " +
+         p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds()) + " UTC";
+}
+function cellValue(u, key) {
+  switch (key) {
+    case "displayName":     return u.displayName || "";
+    case "type":            return classify(u).label;
+    case "id":              return u.id || "";
+    case "upn":             return u.userPrincipalName || "";
+    case "identities":      return idString(u);
+    case "extensions":      return extString(u);
+    case "createdDateTime": return fmtUtc(u.createdDateTime);
+    default:                return "";
+  }
+}
+
+async function loadUsers() {
+  const btn = $("loadBtn");
+  const body = $("usersBody");
+  btn.disabled = true;
+  body.innerHTML = '<tr><td colspan="' + columns.length + '"><span class="spinner"></span> Loading users…</td></tr>';
+  try {
+    // Discover directory-extension attributes that target users, so we can $select them.
+    extensionAttrNames = await getUserExtensionAttrNames();
+    extensionAttrsLoaded = true;
+    const baseSelect = "id,displayName,userPrincipalName,userType,accountEnabled,mail,createdDateTime,creationType,identities";
+    const select = extensionAttrNames.length ? baseSelect + "," + extensionAttrNames.join(",") : baseSelect;
+    let url = GRAPH + "/users?$select=" + select + "&$top=999";
+    let users = [];
+    while (url) {
+      const data = await graphFetch(url);
+      users = users.concat(data.value || []);
+      url = data["@odata.nextLink"] || null;
+      body.innerHTML = '<tr><td colspan="' + columns.length + '"><span class="spinner"></span> Loading users… (' + users.length + ' so far)</td></tr>';
+    }
+    allUsers = users;
+    renderUsers();
+  } catch (e) {
+    body.innerHTML = '<tr><td colspan="' + columns.length + '" style="color:var(--err);"><strong>Error:</strong> ' + esc(e.message) +
+      (e.status === 401 ? ' — your token may be expired or missing <code>User.Read.All</code>.' : '') + '</td></tr>';
+    $("count").textContent = "";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// Return directory-extension property names (extension_<appid>_<name>) that target User objects.
+async function getUserExtensionAttrNames() {
+  try {
+    const data = await graphFetch(GRAPH + "/directoryObjects/getAvailableExtensionProperties", {
+      method: "POST",
+      body: JSON.stringify({ isSyncedFromOnPremises: false })
+    });
+    return (data.value || [])
+      .filter(p => (p.targetObjects || []).includes("User") && /^extension_/.test(p.name || ""))
+      .map(p => p.name);
+  } catch (e) {
+    console.warn("Could not enumerate extension attributes:", e.message);
+    return [];
+  }
+}
+
+// Cache extension attribute names so the create/edit forms can offer them without a full user load.
+let extensionAttrsLoaded = false;
+async function ensureExtensionAttrNames() {
+  if (!extensionAttrsLoaded) {
+    extensionAttrNames = await getUserExtensionAttrNames();
+    extensionAttrsLoaded = true;
+  }
+  return extensionAttrNames;
+}
+function fillExtSelect(sel, selected) {
+  const cur = selected !== undefined ? selected : sel.value;
+  sel.innerHTML = '<option value="">— none —</option>' +
+    extensionAttrNames.map(n =>
+      '<option value="' + esc(n) + '"' + (n === cur ? " selected" : "") + '>' + esc(shortExtName(n)) + '</option>'
+    ).join("");
+}
+
+function graphExplorerLink(id) {
+  const req = encodeURIComponent("users/" + id);
+  return "https://developer.microsoft.com/en-us/graph/graph-explorer?request=" + req + "&method=GET&version=beta&GraphUrl=" + encodeURIComponent("https://graph.microsoft.com");
+}
+function entraLink(id) {
+  return "https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/~/overview/userId/" + encodeURIComponent(id) + "/hidePreviewBanner~/true";
+}
+function userLoginHint(user) {
+  const ids = Array.isArray(user.identities) ? user.identities : [];
+  const emailId = ids.find(i => (i.signInType || "").toLowerCase() === "emailaddress");
+  return (emailId && emailId.issuerAssignedId) || user.mail || user.userPrincipalName || "";
+}
+function runUserFlowLink(user) {
+  return "https://ciamjafritts.ciamlogin.com/ciamjafritts.onmicrosoft.com/oauth2/v2.0/authorize" +
+    "?client_id=3f828bbc-3d05-483b-9264-43b01e9cbfd6" +
+    "&response_type=id_token" +
+    "&redirect_uri=" + encodeURIComponent("https://jwt.ms") +
+    "&response_mode=fragment" +
+    "&scope=" + encodeURIComponent("openid profile") +
+    "&nonce=" + newGuid() +
+    "&state=" + newGuid() +
+    "&login_hint=" + encodeURIComponent(userLoginHint(user));
+}
+
+function identitiesHtml(user) {
+  const ids = Array.isArray(user.identities) ? user.identities : [];
+  if (!ids.length) return '<span class="hint">—</span>';
+  return ids.map(i =>
+    '<div class="id-line mono">' +
+      '<span class="id-key">signInType:</span> ' + esc(i.signInType) + '<br>' +
+      '<span class="id-key">issuer:</span> ' + esc(i.issuer) + '<br>' +
+      '<span class="id-key">issuerAssignedId:</span> ' + esc(i.issuerAssignedId) +
+    '</div>'
+  ).join('<hr style="border:none;border-top:1px dashed var(--border);margin:6px 0;">');
+}
+
+function extensionsHtml(user) {
+  const ext = userExtensions(user);
+  if (!ext.length) return '<span class="hint">—</span>';
+  return ext.map(e =>
+    '<div class="id-line mono">' +
+      '<span class="id-key">' + esc(e.shortName) + ':</span> ' + esc(e.value) +
+      '<br><span class="hint mono" title="' + esc(e.name) + '">' + esc(e.name) + '</span>' +
+    '</div>'
+  ).join('<hr style="border:none;border-top:1px dashed var(--border);margin:6px 0;">');
+}
+
+function buildHead() {
+  const head = $("usersHead");
+  const arrow = k => sortState.key === k ? (sortState.dir === "asc" ? "▲" : "▼") : "";
+  const cols = visibleColumns();
+  head.innerHTML =
+    "<tr>" + cols.map(c =>
+      '<th' + (c.sortable ? ' class="sortable" data-sort="' + c.key + '"' : '') + '>' +
+        esc(c.label) + (c.sortable ? '<span class="arrow">' + arrow(c.key) + '</span>' : '') +
+      '</th>'
+    ).join("") + "</tr>" +
+    '<tr class="filter-row">' + cols.map(c =>
+      '<th>' + (c.filter
+        ? '<input type="text" class="col-filter" data-col="' + c.key + '" placeholder="filter…" value="' + esc(colFilters[c.key] || "") + '" />'
+        : '') + '</th>'
+    ).join("") + "</tr>";
+
+  head.querySelectorAll("th.sortable").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.sort;
+      if (sortState.key === k) sortState.dir = sortState.dir === "asc" ? "desc" : "asc";
+      else { sortState.key = k; sortState.dir = k === "createdDateTime" ? "desc" : "asc"; }
+      renderUsers();
+    });
+  });
+  head.querySelectorAll(".col-filter").forEach(inp => {
+    inp.addEventListener("click", e => e.stopPropagation());
+    inp.addEventListener("input", () => {
+      colFilters[inp.dataset.col] = inp.value;
+      renderBody();
+    });
+  });
+}
+
+function renderBody() {
+  const body = $("usersBody");
+  const g = $("filter").value.trim().toLowerCase();
+  const extOnly = $("extOnly").checked;
+  const cols = visibleColumns();
+
+  let rows = allUsers.filter(u => {
+    if (extOnly && userExtensions(u).length === 0) return false;
+    if (g) {
+      const hay = cols.map(c => c.key !== "links" ? cellValue(u, c.key) : "").join(" ").toLowerCase();
+      if (!hay.includes(g)) return false;
+    }
+    for (const c of cols) {
+      const f = (colFilters[c.key] || "").trim().toLowerCase();
+      if (f && !String(cellValue(u, c.key)).toLowerCase().includes(f)) return false;
+    }
+    return true;
+  });
+
+  const k = sortState.key, dir = sortState.dir === "asc" ? 1 : -1;
+  rows.sort((a, b) => {
+    if (k === "createdDateTime") {
+      const av = new Date(a.createdDateTime || 0).getTime();
+      const bv = new Date(b.createdDateTime || 0).getTime();
+      return (av - bv) * dir;
+    }
+    return String(cellValue(a, k)).toLowerCase()
+      .localeCompare(String(cellValue(b, k)).toLowerCase()) * dir;
+  });
+
+  $("count").textContent = rows.length + " of " + allUsers.length + " user" + (allUsers.length === 1 ? "" : "s");
+
+  if (!rows.length) {
+    body.innerHTML = '<tr><td colspan="' + cols.length + '" style="color:var(--muted);">' +
+      (allUsers.length ? "No users match." : "No users loaded.") + '</td></tr>';
+    return;
+  }
+
+  body.innerHTML = rows.map(u => {
+    const c = classify(u);
+    const disabled = u.accountEnabled === false
+      ? ' <span class="badge b-disabled" title="Account disabled">Disabled</span>' : "";
+    return '<tr>' +
+      '<td>' + esc(u.displayName || "—") + '<br><span class="hint mono">' + esc(u.mail || "") + '</span></td>' +
+      '<td><span class="badge ' + c.cls + '">' + esc(c.label) + '</span>' + disabled + '</td>' +
+      '<td class="mono">' + esc(u.id) +
+        '<button class="copy-id" title="Copy object ID" data-copy="' + esc(u.id) + '">⧉</button></td>' +
+      '<td class="mono">' + esc(u.userPrincipalName || "—") + '</td>' +
+      '<td>' + identitiesHtml(u) + '</td>' +
+      (extColumnVisible() ? '<td>' + extensionsHtml(u) + '</td>' : '') +
+      '<td class="mono nowrap">' + esc(fmtUtc(u.createdDateTime)) + '</td>' +
+      '<td class="links">' +
+        '<a href="' + graphExplorerLink(u.id) + '" target="_blank" rel="noopener">Graph Explorer</a>' +
+        '<a href="' + entraLink(u.id) + '" target="_blank" rel="noopener">Entra admin center</a>' +
+        '<a href="' + esc(runUserFlowLink(u)) + '" target="_blank" rel="noopener">Run User Flow</a>' +
+        '<a href="#" class="edit-user" data-id="' + esc(u.id) + '">Edit User</a>' +
+        '<a href="#" class="del-user" data-id="' + esc(u.id) + '" data-name="' + esc(u.displayName || u.userPrincipalName || u.id) + '">Delete User</a>' +
+      '</td>' +
+    '</tr>';
+  }).join("");
+
+  body.querySelectorAll(".copy-id").forEach(b => {
+    b.addEventListener("click", () => {
+      navigator.clipboard.writeText(b.dataset.copy);
+      const o = b.textContent; b.textContent = "✓";
+      setTimeout(() => b.textContent = o, 1000);
+    });
+  });
+
+  body.querySelectorAll(".edit-user").forEach(a => {
+    a.addEventListener("click", e => { e.preventDefault(); openEditor(a.dataset.id); });
+  });
+  body.querySelectorAll(".del-user").forEach(a => {
+    a.addEventListener("click", e => { e.preventDefault(); deleteUser(a.dataset.id, a.dataset.name); });
+  });
+}
+
+function renderUsers() {
+  buildHead();
+  renderBody();
+}
+
+$("loadBtn").addEventListener("click", loadUsers);
+$("filter").addEventListener("input", renderBody);
+$("extOnly").addEventListener("change", renderUsers);
+buildHead();
+
+// ---------- create users ----------
+let selectedType = null;
+
+const typeTitles = {
+  admin: "2. New admin account details",
+  password: "2. New customer (Email + Password) details",
+  otp: "2. New customer (Email + OTP) details",
+  federated: "2. New customer (Federated IdP) details"
+};
+
+document.querySelectorAll(".type-opt").forEach(opt => {
+  opt.addEventListener("click", () => {
+    document.querySelectorAll(".type-opt").forEach(o => o.classList.remove("sel"));
+    opt.classList.add("sel");
+    selectedType = opt.dataset.type;
+    $("createForm").classList.remove("hidden");
+    $("formTitle").textContent = typeTitles[selectedType];
+    $("createResult").classList.add("hidden");
+    document.querySelectorAll(".typefields").forEach(f => {
+      f.classList.toggle("hidden", f.dataset.for !== selectedType);
+    });
+    $("admin-domain-lbl").textContent = tenantDomain();
+    // populate the extension-attribute dropdown for the create form
+    ensureExtensionAttrNames().then(() => fillExtSelect($("create-ext-name")));
+  });
+});
+
+function newGuid() {
+  return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+    (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+}
+const localPart = (email) => (email || "").split("@")[0];
+
+// Convert a JS value into a PowerShell literal (hashtable / array / scalar).
+function toPs(val, indent) {
+  const pad = "    ".repeat(indent);
+  const pad1 = "    ".repeat(indent + 1);
+  if (val === null || val === undefined) return "$null";
+  if (typeof val === "boolean") return val ? "$true" : "$false";
+  if (typeof val === "number") return String(val);
+  if (typeof val === "string") return "'" + val.replace(/'/g, "''") + "'";
+  if (Array.isArray(val)) {
+    if (!val.length) return "@()";
+    return "@(\n" + val.map(v => pad1 + toPs(v, indent + 1)).join("\n") + "\n" + pad + ")";
+  }
+  const keys = Object.keys(val);
+  if (!keys.length) return "@{}";
+  return "@{\n" + keys.map(k => pad1 + k + " = " + toPs(val[k], indent + 1)).join("\n") + "\n" + pad + "}";
+}
+function psCreate(payload) {
+  return 'Connect-MgGraph -Scopes "User.ReadWrite.All"\n\n' +
+    "$params = " + toPs(payload, 0) + "\n\n" +
+    "New-MgUser -BodyParameter $params";
+}
+function psUpdate(id, payload) {
+  return 'Connect-MgGraph -Scopes "User.ReadWrite.All"\n\n' +
+    "$params = " + toPs(payload, 0) + "\n\n" +
+    "Update-MgUser -UserId '" + id + "' -BodyParameter $params";
+}
+
+function buildPayload() {
+  const payload = buildBasePayload();
+  const extName = $("create-ext-name").value;
+  const extVal = $("create-ext-value").value.trim();
+  if (extName && extVal) payload[extName] = extVal;
+  return payload;
+}
+
+function buildBasePayload() {
+  const dom = tenantDomain();
+  if (!dom) throw new Error("Tenant domain is required.");
+
+  if (selectedType === "admin") {
+    const prefix = $("admin-upnprefix").value.trim();
+    const pwd = $("admin-pwd").value;
+    if (!prefix) throw new Error("Username (UPN prefix) is required.");
+    if (!pwd) throw new Error("Password is required.");
+    const display = $("admin-display").value.trim() || prefix;
+    return {
+      accountEnabled: true,
+      displayName: display,
+      userPrincipalName: prefix + "@" + dom,
+      mailNickname: prefix,
+      passwordProfile: {
+        password: pwd,
+        forceChangePasswordNextSignIn: $("admin-forcechange").checked
+      }
+    };
+  }
+
+  if (selectedType === "password") {
+    const email = $("pwd-email").value.trim();
+    const pwd = $("pwd-pwd").value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("A valid email address is required.");
+    if (!pwd) throw new Error("Password is required.");
+    const display = $("pwd-display").value.trim() || localPart(email);
+    return {
+      accountEnabled: true,
+      displayName: display,
+      userPrincipalName: newGuid() + "@" + dom,
+      mailNickname: localPart(email),
+      identities: [{
+        signInType: "emailAddress",
+        issuer: dom,
+        issuerAssignedId: email
+      }],
+      passwordProfile: {
+        password: pwd,
+        forceChangePasswordNextSignIn: false
+      },
+      passwordPolicies: "DisablePasswordExpiration"
+    };
+  }
+
+  if (selectedType === "otp") {
+    const email = $("otp-email").value.trim();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("A valid email address is required.");
+    const display = $("otp-display").value.trim() || localPart(email);
+    return {
+      accountEnabled: true,
+      displayName: display,
+      userPrincipalName: newGuid() + "@" + dom,
+      mailNickname: localPart(email),
+      mail: email,
+      identities: [{
+        signInType: "federated",
+        issuer: "mail",
+        issuerAssignedId: email
+      }]
+    };
+  }
+
+  if (selectedType === "federated") {
+    const issuer = $("fed-issuer").value.trim();
+    const issuerId = $("fed-issuerid").value.trim();
+    const email = $("fed-email").value.trim();
+    if (!issuer) throw new Error("Issuer is required.");
+    if (!issuerId) throw new Error("Issuer-assigned ID is required.");
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw new Error("A valid email address is required.");
+    const display = $("fed-display").value.trim() || localPart(email);
+    return {
+      accountEnabled: true,
+      displayName: display,
+      userPrincipalName: newGuid() + "@" + dom,
+      mailNickname: localPart(email),
+      mail: email,
+      identities: [{
+        signInType: "federated",
+        issuer: issuer,
+        issuerAssignedId: issuerId
+      }]
+    };
+  }
+
+  throw new Error("Select a user type first.");
+}
+
+$("previewBtn").addEventListener("click", () => {
+  const out = $("createResult");
+  out.classList.remove("hidden");
+  try {
+    const payload = buildPayload();
+    out.style.color = "#d4d4d4";
+    out.textContent = $("createPreviewFormat").value === "powershell"
+      ? psCreate(payload)
+      : "POST " + GRAPH + "/users\n\n" + JSON.stringify(payload, null, 2);
+  } catch (e) {
+    out.style.color = "#f48771";
+    out.textContent = "⚠ " + e.message;
+  }
+});
+
+$("createPreviewFormat").addEventListener("change", () => {
+  if (!$("createResult").classList.contains("hidden")) $("previewBtn").click();
+});
+
+$("createBtn").addEventListener("click", async () => {
+  const out = $("createResult");
+  const btn = $("createBtn");
+  out.classList.remove("hidden");
+  let payload;
+  try {
+    payload = buildPayload();
+  } catch (e) {
+    out.style.color = "#f48771";
+    out.textContent = "⚠ " + e.message;
+    return;
+  }
+  btn.disabled = true;
+  out.style.color = "#d4d4d4";
+  out.textContent = "Creating user…";
+  try {
+    const user = await graphFetch(GRAPH + "/users", { method: "POST", body: JSON.stringify(payload) });
+    out.style.color = "#b5cea8";
+    out.textContent = "✓ Created user\n\n" +
+      "id:                " + user.id + "\n" +
+      "displayName:       " + user.displayName + "\n" +
+      "userPrincipalName: " + user.userPrincipalName + "\n\n" +
+      JSON.stringify(user, null, 2);
+    // refresh list in background if already loaded
+    if (allUsers.length) loadUsers();
+  } catch (e) {
+    out.style.color = "#f48771";
+    let msg = "✗ Failed to create user: " + e.message;
+    if (e.body) msg += "\n\n" + JSON.stringify(e.body, null, 2);
+    out.textContent = msg;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- delete user ----------
+async function deleteUser(id, name) {
+  if (!confirm('Delete user "' + name + '"?\n\nObject ID: ' + id +
+    '\n\nThe user is moved to the directory recycle bin (restorable for 30 days).')) return;
+  try {
+    await graphFetch(GRAPH + "/users/" + encodeURIComponent(id), { method: "DELETE" });
+    if (editingUserId === id) { editingUserId = null; activateTab("list"); }
+    if (allUsers.length) await loadUsers();
+  } catch (e) {
+    alert("Failed to delete user:\n\n" + e.message);
+  }
+}
+
+// ---------- edit user ----------
+let editingUserId = null;
+let editingUserOriginal = null;
+
+const SIGNIN_TYPES = ["emailAddress", "federated", "userName", "userPrincipalName"];
+
+function identityRow(idn) {
+  const wrap = document.createElement("div");
+  wrap.className = "id-row";
+  const opts = SIGNIN_TYPES.slice();
+  if (idn.signInType && !opts.includes(idn.signInType)) opts.unshift(idn.signInType);
+  wrap.innerHTML =
+    '<select class="id-signintype">' +
+      opts.map(o => '<option value="' + esc(o) + '"' + (o === idn.signInType ? " selected" : "") + '>' + esc(o) + '</option>').join("") +
+    '</select>' +
+    '<input class="id-issuer" placeholder="issuer" value="' + esc(idn.issuer || "") + '" />' +
+    '<input class="id-issuerid" placeholder="issuerAssignedId" value="' + esc(idn.issuerAssignedId || "") + '" />' +
+    '<button class="secondary id-remove" type="button">Remove</button>';
+  wrap.querySelector(".id-remove").addEventListener("click", () => wrap.remove());
+  return wrap;
+}
+
+function readIdentities() {
+  return [...$("identitiesEditor").querySelectorAll(".id-row")].map(r => ({
+    signInType: r.querySelector(".id-signintype").value.trim(),
+    issuer: r.querySelector(".id-issuer").value.trim(),
+    issuerAssignedId: r.querySelector(".id-issuerid").value.trim()
+  })).filter(i => i.signInType || i.issuer || i.issuerAssignedId);
+}
+
+async function openEditor(id) {
+  activateTab("editor");
+  $("editorEmpty").classList.add("hidden");
+  $("editorContent").classList.add("hidden");
+  $("editorLoading").classList.remove("hidden");
+  try {
+    await ensureExtensionAttrNames();
+    const baseSelect = "id,displayName,userPrincipalName,mail,mailNickname,givenName,surname,accountEnabled,userType,identities,passwordPolicies,createdDateTime";
+    const select = extensionAttrNames.length ? baseSelect + "," + extensionAttrNames.join(",") : baseSelect;
+    const u = await graphFetch(GRAPH + "/users/" + encodeURIComponent(id) + "?$select=" + select);
+    editingUserId = u.id;
+    editingUserOriginal = u;
+    $("editUserName").textContent = u.displayName || u.userPrincipalName || u.id;
+    $("editUserId").textContent = "Object ID: " + u.id + "   ·   userType: " + (u.userType || "—");
+    $("edit-displayName").value = u.displayName || "";
+    $("edit-givenName").value = u.givenName || "";
+    $("edit-surname").value = u.surname || "";
+    $("edit-mail").value = u.mail || "";
+    $("edit-mailNickname").value = u.mailNickname || "";
+    $("edit-upn").value = u.userPrincipalName || "";
+    $("edit-accountEnabled").checked = u.accountEnabled !== false;
+    const cont = $("identitiesEditor");
+    cont.innerHTML = "";
+    (u.identities || []).forEach(i => cont.appendChild(identityRow(i)));
+    // reset password fields
+    $("edit-pwd-enable").checked = false;
+    $("edit-pwd-value").value = "";
+    $("edit-pwd-force").checked = false;
+    togglePwdFields();
+    // populate password policies
+    const pols = parsePasswordPolicies(u.passwordPolicies);
+    $("edit-pol-noexpire").checked = pols.includes("DisablePasswordExpiration");
+    $("edit-pol-nostrong").checked = pols.includes("DisableStrongPassword");
+    // populate extension attribute dropdown; preselect the first one that has a value
+    const populatedExt = userExtensions(u)[0];
+    fillExtSelect($("edit-ext-name"), populatedExt ? populatedExt.name : "");
+    $("edit-ext-value").value = populatedExt ? populatedExt.value : "";
+    $("editResult").classList.add("hidden");
+    $("editorLoading").classList.add("hidden");
+    $("editorContent").classList.remove("hidden");
+  } catch (e) {
+    $("editorLoading").classList.add("hidden");
+    $("editorEmpty").classList.remove("hidden");
+    $("editorEmpty").innerHTML = '<span style="color:var(--err);">Failed to load user: ' + esc(e.message) + '</span>';
+  }
+}
+
+function buildPatch() {
+  const o = editingUserOriginal || {};
+  const body = {};
+  const dn = $("edit-displayName").value.trim();
+  const mn = $("edit-mailNickname").value.trim();
+  const upn = $("edit-upn").value.trim();
+  if (!dn) throw new Error("Display name is required.");
+  if (!mn) throw new Error("Mail nickname is required.");
+  if (!upn) throw new Error("User principal name is required.");
+
+  if (dn !== (o.displayName || "")) body.displayName = dn;
+  if ($("edit-givenName").value.trim() !== (o.givenName || "")) body.givenName = $("edit-givenName").value.trim() || null;
+  if ($("edit-surname").value.trim() !== (o.surname || "")) body.surname = $("edit-surname").value.trim() || null;
+  if ($("edit-mail").value.trim() !== (o.mail || "")) body.mail = $("edit-mail").value.trim() || null;
+  if (mn !== (o.mailNickname || "")) body.mailNickname = mn;
+  if (upn !== (o.userPrincipalName || "")) body.userPrincipalName = upn;
+  const enabled = $("edit-accountEnabled").checked;
+  if (enabled !== (o.accountEnabled !== false)) body.accountEnabled = enabled;
+
+  const newIds = readIdentities();
+  const origIds = (o.identities || []).map(i => ({ signInType: i.signInType, issuer: i.issuer, issuerAssignedId: i.issuerAssignedId }));
+  if (JSON.stringify(newIds) !== JSON.stringify(origIds)) body.identities = newIds;
+
+  // password reset
+  if ($("edit-pwd-enable").checked) {
+    const pwd = $("edit-pwd-value").value;
+    if (!pwd) throw new Error("Enter a new password or uncheck \"Update password\".");
+    body.passwordProfile = {
+      password: pwd,
+      forceChangePasswordNextSignIn: $("edit-pwd-force").checked
+    };
+  }
+
+  // password policies
+  const newPols = readPasswordPolicies();
+  const origPols = parsePasswordPolicies(o.passwordPolicies).join(", ");
+  if (newPols !== origPols) body.passwordPolicies = newPols || null;
+
+  // extension attribute
+  const extName = $("edit-ext-name").value;
+  if (extName) {
+    const extVal = $("edit-ext-value").value.trim();
+    const origVal = o[extName] == null ? "" : String(o[extName]);
+    if (extVal !== origVal) body[extName] = extVal || null;
+  }
+
+  if (Object.keys(body).length === 0) throw new Error("No changes to save.");
+  return body;
+}
+
+function parsePasswordPolicies(val) {
+  return String(val || "").split(",").map(s => s.trim()).filter(Boolean);
+}
+function readPasswordPolicies() {
+  const p = [];
+  if ($("edit-pol-noexpire").checked) p.push("DisablePasswordExpiration");
+  if ($("edit-pol-nostrong").checked) p.push("DisableStrongPassword");
+  return p.join(", ");
+}
+function togglePwdFields() {
+  const on = $("edit-pwd-enable").checked;
+  $("edit-pwd-value").disabled = !on;
+  $("edit-pwd-force").disabled = !on;
+  $("edit-pwd-fields").style.opacity = on ? "1" : ".5";
+}
+$("edit-pwd-enable").addEventListener("change", togglePwdFields);
+
+// When the admin picks a different extension attribute, show that attribute's current value.
+$("edit-ext-name").addEventListener("change", () => {
+  const name = $("edit-ext-name").value;
+  const o = editingUserOriginal || {};
+  $("edit-ext-value").value = name && o[name] != null ? String(o[name]) : "";
+});
+
+$("addIdentityBtn").addEventListener("click", () => {
+  const dom = tenantDomain();
+  const map = {
+    password:  { signInType: "emailAddress", issuer: dom,    issuerAssignedId: "" },
+    otp:       { signInType: "federated",    issuer: "mail", issuerAssignedId: "" },
+    federated: { signInType: "federated",    issuer: "",     issuerAssignedId: "" },
+    blank:     { signInType: "emailAddress", issuer: "",     issuerAssignedId: "" }
+  };
+  const preset = $("addIdentityPreset").value;
+  $("identitiesEditor").appendChild(identityRow(map[preset] || map.blank));
+});
+
+$("reloadUserBtn").addEventListener("click", () => { if (editingUserId) openEditor(editingUserId); });
+
+$("previewPatchBtn").addEventListener("click", () => {
+  const out = $("editResult");
+  out.classList.remove("hidden");
+  try {
+    const body = buildPatch();
+    out.style.color = "#d4d4d4";
+    out.textContent = $("editPreviewFormat").value === "powershell"
+      ? psUpdate(editingUserId, body)
+      : "PATCH " + GRAPH + "/users/" + editingUserId + "\n\n" + JSON.stringify(body, null, 2);
+  } catch (e) {
+    out.style.color = "#f48771";
+    out.textContent = "⚠ " + e.message;
+  }
+});
+
+$("editPreviewFormat").addEventListener("change", () => {
+  if (!$("editResult").classList.contains("hidden")) $("previewPatchBtn").click();
+});
+
+$("saveUserBtn").addEventListener("click", async () => {
+  const out = $("editResult");
+  const btn = $("saveUserBtn");
+  out.classList.remove("hidden");
+  let body;
+  try { body = buildPatch(); }
+  catch (e) { out.style.color = "#f48771"; out.textContent = "⚠ " + e.message; return; }
+  btn.disabled = true;
+  out.style.color = "#d4d4d4";
+  out.textContent = "Saving…";
+  try {
+    await graphFetch(GRAPH + "/users/" + encodeURIComponent(editingUserId), { method: "PATCH", body: JSON.stringify(body) });
+    out.style.color = "#b5cea8";
+    out.textContent = "✓ Saved changes to " + editingUserId + "\n\n" + JSON.stringify(body, null, 2);
+    // reset the change baseline so further edits diff correctly
+    editingUserOriginal = Object.assign({}, editingUserOriginal, body);
+    if (body.identities) editingUserOriginal.identities = body.identities;
+    $("editUserName").textContent = editingUserOriginal.displayName || editingUserOriginal.userPrincipalName || editingUserId;
+    if (allUsers.length) loadUsers();
+  } catch (e) {
+    out.style.color = "#f48771";
+    let msg = "✗ Failed to save: " + e.message;
+    if (e.body) msg += "\n\n" + JSON.stringify(e.body, null, 2);
+    out.textContent = msg;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+// ---------- cache Graph token in localStorage (persists across browser restarts) ----------
+const TOKEN_KEY = "ciam.graphAccessToken";
+const TENANT_KEY = "ciam.tenantDomain";
+
+function isTokenExpired(tok) {
+  const c = decodeJwt(tok);
+  if (!c || !c.exp) return false; // can't determine -> assume usable
+  return c.exp < Math.floor(Date.now() / 1000);
+}
+function saveToken(tok) {
+  try {
+    if (tok && !isTokenExpired(tok)) localStorage.setItem(TOKEN_KEY, tok);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch {}
+}
+
+(function restoreSession() {
+  try {
+    const savedTenant = localStorage.getItem(TENANT_KEY);
+    if (savedTenant) { $("tenantDomain").value = savedTenant; $("admin-domain-lbl").textContent = savedTenant; }
+    const savedTok = localStorage.getItem(TOKEN_KEY);
+    if (savedTok) {
+      if (isTokenExpired(savedTok)) {
+        localStorage.removeItem(TOKEN_KEY);
+      } else {
+        $("token").value = savedTok;
+        $("validateBtn").click();
+      }
+    }
+  } catch { /* localStorage unavailable */ }
+})();
+
+$("tenantDomain").addEventListener("input", () => {
+  try { localStorage.setItem(TENANT_KEY, $("tenantDomain").value.trim()); } catch {}
+});
+</script>
+</body>
+</html>
