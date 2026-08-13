@@ -151,7 +151,8 @@ Steps 2–4 differ slightly for the SAML tool:
 ### `SamlOptionalClaimsDemo.ps1` (SAML 2.0)
 
 <!-- Upload your screenshot and update the path/URL below -->
-![SamlOptionalClaimsDemo.ps1 - decoded SAML assertion](images/samloptionalclaimsdemo.png)
+<img width="983" height="754" alt="image" src="https://github.com/user-attachments/assets/0b5f4278-eac1-4afa-98dc-1113c4a00d1c" />
+
 
 *Example: the tool after a SAML sign-in, showing the decoded assertion with NameID, Issuer, Audience, and the `<Attribute>` claims.*
 
