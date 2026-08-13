@@ -1,7 +1,7 @@
 
 # Entra Optional Claims Demo Tools
 
-Two single-file PowerShell + Windows Forms tools for **demonstrating Microsoft Entra ID optional claims**. Each tool creates (or reuses) an app registration, lets you pick which optional claims to request from the [official optional claims reference](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims-reference), signs a user in, and shows the **decoded, human-readable tokens** so you can confirm exactly which claims were emitted.
+Three single-file PowerShell + Windows Forms tools for **demonstrating Microsoft Entra ID optional claims**. Each tool creates (or reuses) an app registration, lets you pick which optional claims to request from the [official optional claims reference](https://learn.microsoft.com/en-us/entra/identity-platform/optional-claims-reference), signs a user in, and shows the **decoded, human-readable tokens** so you can confirm exactly which claims were emitted.
 
 | Script | Protocol / Endpoint | Sign-in method | Tokens shown |
 | --- | --- | --- | --- |
@@ -135,7 +135,8 @@ Steps 2–4 differ slightly for the SAML tool:
 ### `OptionalClaimsDemo.ps1` (v2.0 / OIDC)
 
 <!-- Upload your screenshot and update the path/URL below -->
-![OptionalClaimsDemo.ps1 - decoded v2 tokens](images/optionalclaimsdemo-v2.png)
+<img width="1080" height="749" alt="image" src="https://github.com/user-attachments/assets/f8e1953f-4b04-41de-8fd0-a7d8fbca473e" />
+
 
 *Example: the tool after signing in, showing the decoded v2 `id_token` with the selected optional claims.*
 
