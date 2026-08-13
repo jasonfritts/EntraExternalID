@@ -143,7 +143,8 @@ Steps 2–4 differ slightly for the SAML tool:
 ### `OptionalClaimsDemoV1.ps1` (v1.0)
 
 <!-- Upload your screenshot and update the path/URL below -->
-![OptionalClaimsDemoV1.ps1 - decoded v1 tokens](images/optionalclaimsdemo-v1.png)
+<img width="982" height="753" alt="image" src="https://github.com/user-attachments/assets/e678c980-541e-49ed-b0ae-85566ea88d05" />
+
 
 *Example: the tool after a v1 sign-in, showing the `ver: 1.0` token with v1-style claims (`upn`, `unique_name`).*
 
