@@ -84,10 +84,40 @@ function Get-AllPartners {
 
 function Set-ActionAreaEnabled {
     param([bool] $Enabled)
-    $script:txtApp.Enabled   = $Enabled
-    $script:rbAdd.Enabled    = $Enabled
-    $script:rbRemove.Enabled = $Enabled
+    $script:txtApp.Enabled    = $Enabled
+    $script:rbAdd.Enabled     = $Enabled
+    $script:rbRemove.Enabled  = $Enabled
+    $script:chkBackup.Enabled = $Enabled
     if (-not $Enabled) { $script:btnApply.Enabled = $false }
+}
+
+# ---- Back up the partner's full current policy to a .json file -------------------------
+function Save-PolicyBackup {
+    param([string] $Tenant)
+    try {
+        $fresh = Invoke-MgGraphRequest -Method GET -Uri $script:PartnerUri -OutputType Hashtable -ErrorAction Stop
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("Could not read current policy for backup: $($_.Exception.Message)", 'Backup', 'OK', 'Warning') | Out-Null
+        return $false
+    }
+
+    $dlg = New-Object System.Windows.Forms.SaveFileDialog
+    $dlg.Title = 'Save current policy backup'
+    $dlg.Filter = 'JSON files (*.json)|*.json|All files (*.*)|*.*'
+    $dlg.FileName = "XtapBackup_${Tenant}_$(Get-Date -Format 'yyyyMMdd-HHmmss').json"
+    try { $dlg.InitialDirectory = (Get-Location).Path } catch { }
+    if ($dlg.ShowDialog() -ne [System.Windows.Forms.DialogResult]::OK) { return $false }
+
+    try {
+        ($fresh | ConvertTo-Json -Depth 20) | Out-File -FilePath $dlg.FileName -Encoding UTF8 -ErrorAction Stop
+        Set-Status "Backup saved: $($dlg.FileName)" ([System.Drawing.Color]::DarkGreen)
+        return $true
+    }
+    catch {
+        [System.Windows.Forms.MessageBox]::Show("Failed to write backup file: $($_.Exception.Message)", 'Backup', 'OK', 'Warning') | Out-Null
+        return $false
+    }
 }
 
 # ---- Step 1: connect as admin ---------------------------------------------------------
@@ -263,6 +293,13 @@ function Invoke-ApplyChange {
         'Confirm change', [System.Windows.Forms.MessageBoxButtons]::YesNo, [System.Windows.Forms.MessageBoxIcon]::Question)
     if ($confirm -ne [System.Windows.Forms.DialogResult]::Yes) { return }
 
+    if ($script:chkBackup.Checked) {
+        if (-not (Save-PolicyBackup -Tenant $tenant)) {
+            Set-Status 'Backup cancelled - no changes were applied.' ([System.Drawing.Color]::Firebrick)
+            return
+        }
+    }
+
     $script:btnApply.Enabled = $false
     Set-Status 'Applying change...' ([System.Drawing.Color]::DarkBlue)
     $script:form.Refresh()
@@ -408,6 +445,14 @@ $script:rbRemove.Location = New-Object System.Drawing.Point(70, 3)
 $script:rbRemove.Size = New-Object System.Drawing.Size(80, 22)
 $script:rbRemove.Enabled = $false
 $pnlAction.Controls.Add($script:rbRemove)
+
+$script:chkBackup = New-Object System.Windows.Forms.CheckBox
+$script:chkBackup.Text = 'Back up current policy to .json before applying'
+$script:chkBackup.Location = New-Object System.Drawing.Point(400, 345)
+$script:chkBackup.Size = New-Object System.Drawing.Size(376, 22)
+$script:chkBackup.Checked = $true
+$script:chkBackup.Enabled = $false
+$script:form.Controls.Add($script:chkBackup)
 
 $script:lblPropHdr = New-Object System.Windows.Forms.Label
 $script:lblPropHdr.Text = 'PROPOSED policy:'
