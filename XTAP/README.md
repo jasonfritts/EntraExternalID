@@ -63,11 +63,11 @@ pwsh -STA -File .\Update-XtapPartnerPolicy.ps1
 
 1. **Connect (admin)** — sign in. The tool loads your partner policies.
 2. **Partner policy** — pick a partner tenant from the dropdown (use **Refresh** to reload).
+3. **Policy direction** — choose **Inbound** or **Outbound**; the current policy repaints instantly.
 
-   <img width="782" height="751" alt="image" src="https://github.com/user-attachments/assets/69bb886b-5c5c-4644-b303-fe48b0c6b298" />
+   <img width="783" height="751" alt="image" src="https://github.com/user-attachments/assets/e7e66948-1dd2-4ece-a528-eca8091da9ac" />
 
    
-3. **Policy direction** — choose **Inbound** or **Outbound**; the current policy repaints instantly.
 4. **Application (App) ID** — paste the app's GUID.
 5. **Action** — choose **Add** or **Remove**; the **PROPOSED** JSON updates live.
 6. **Apply** — confirm Yes/No. The change is saved and the **CURRENT** view refreshes to the result.
@@ -77,6 +77,7 @@ pwsh -STA -File .\Update-XtapPartnerPolicy.ps1
 ## Safety features
 
 - **Preview before write** — current vs. proposed JSON shown side by side; nothing is saved until you click **Apply** and confirm.
+- **Backup before write** — an optional (default-on) checkbox saves the partner's **full current policy** (both directions and all settings) to a timestamped `.json` file before applying, so you can restore. Cancelling the save dialog aborts the change.
 - **No-op guards** — Apply is disabled when adding an app that's already present or removing one that isn't.
 - **Block-list warning** — if the list's `accessType` is `blocked` and you choose **Add**, the tool warns that a partner policy has a single applications list with one `accessType` (you can't keep both an allow-list and a block-list for the same partner) and requires an acknowledgment checkbox before enabling Apply.
 - **`AllApplications` note** — flags a redundant specific-app add on an allow-list.
