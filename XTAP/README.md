@@ -34,6 +34,8 @@ It talks to Microsoft Graph, lists your configured partners, shows the live poli
 
 ## Running it
 
+Right Click \ Download [Update-XtapPartnerPolicy.ps1](https://github.com/jasonfritts/EntraExternalID/blob/main/XTAP/Update-XtapPartnerPolicy.ps1) to your local computer and then
+
 ```powershell
 # Fully interactive
 .\Update-XtapPartnerPolicy.ps1
