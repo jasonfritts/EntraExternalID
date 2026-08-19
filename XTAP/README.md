@@ -65,7 +65,8 @@ pwsh -STA -File .\Update-XtapPartnerPolicy.ps1
 2. **Partner policy** — pick a partner tenant from the dropdown (use **Refresh** to reload).
 3. **Policy direction** — choose **Inbound** or **Outbound**; the current policy repaints instantly.
 
-   <img width="783" height="751" alt="image" src="https://github.com/user-attachments/assets/e7e66948-1dd2-4ece-a528-eca8091da9ac" />
+   <img width="972" height="926" alt="image" src="https://github.com/user-attachments/assets/508e3fa8-f966-4f51-8985-b0193a140431" />
+
 
    
 4. **Application (App) ID** — paste the app's GUID.
