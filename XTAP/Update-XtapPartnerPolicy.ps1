@@ -32,7 +32,8 @@ param(
 #Requires -Modules Microsoft.Graph.Authentication
 
 # ---- Configuration --------------------------------------------------------------------
-$GraphBaseUri = 'https://graph.microsoft.com/v1.0/policies/crossTenantAccessPolicy/partners'
+$GraphBaseUri   = 'https://graph.microsoft.com/v1.0/policies/crossTenantAccessPolicy/partners'
+$DefaultUri     = 'https://graph.microsoft.com/v1.0/policies/crossTenantAccessPolicy/default'
 # ---------------------------------------------------------------------------------------
 
 function Test-Guid {
@@ -82,6 +83,29 @@ function Get-AllPartners {
     return $all
 }
 
+# ---- Resolve a tenant's display name / default domain from its tenant id ---------------
+function Get-TenantInfo {
+    param([string] $TenantId)
+    try {
+        $uri = "https://graph.microsoft.com/v1.0/tenantRelationships/findTenantInformationByTenantId(tenantId='$TenantId')"
+        $info = Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType Hashtable -ErrorAction Stop
+        return [pscustomobject]@{
+            DisplayName       = [string]$info['displayName']
+            DefaultDomainName = [string]$info['defaultDomainName']
+        }
+    }
+    catch {
+        return [pscustomobject]@{ DisplayName = ''; DefaultDomainName = '' }
+    }
+}
+
+# ---- Read the tenant-wide default cross-tenant access policy ---------------------------
+function Get-DefaultPolicy {
+    $def = Invoke-MgGraphRequest -Method GET -Uri $DefaultUri -OutputType Hashtable -ErrorAction Stop
+    $def['_isDefault'] = $true
+    return $def
+}
+
 function Set-ActionAreaEnabled {
     param([bool] $Enabled)
     $script:txtApp.Enabled    = $Enabled
@@ -126,7 +150,7 @@ function Invoke-Connect {
     Set-Status 'Connecting to Microsoft Graph - sign in with admin credentials...' ([System.Drawing.Color]::DarkBlue)
     $script:form.Refresh()
     try {
-        Connect-MgGraph -Scopes 'Policy.ReadWrite.CrossTenantAccess' -ErrorAction Stop | Out-Null
+        Connect-MgGraph -Scopes 'Policy.ReadWrite.CrossTenantAccess', 'CrossTenantInformation.ReadBasic.All' -ErrorAction Stop | Out-Null
         $ctx = Get-MgContext
     }
     catch {
@@ -156,9 +180,24 @@ function Invoke-LoadPartners {
         return
     }
 
-    $script:Partners = @($partners)
+    # The tenant-wide default policy is offered as the first entry in the list.
+    $default = $null
+    try { $default = Get-DefaultPolicy }
+    catch { $default = $null }
+
+    $script:Partners = if ($default) { @($default) + @($partners) } else { @($partners) }
     $script:cboPartner.Items.Clear()
-    foreach ($p in $script:Partners) { [void]$script:cboPartner.Items.Add([string]$p['tenantId']) }
+    foreach ($p in $script:Partners) {
+        if ($p['_isDefault']) {
+            [void]$script:cboPartner.Items.Add('Tenant default policy (applies to partners without an explicit policy)')
+            continue
+        }
+        $tid  = [string]$p['tenantId']
+        $info = Get-TenantInfo $tid
+        $name = if ($info.DisplayName) { $info.DisplayName } else { '(unknown)' }
+        $dom  = if ($info.DefaultDomainName) { $info.DefaultDomainName } else { '(unknown)' }
+        [void]$script:cboPartner.Items.Add("$name - $dom - $tid")
+    }
 
     $script:PartnerSelected = $false
     $script:CurrentPartner  = $null
@@ -175,7 +214,10 @@ function Invoke-LoadPartners {
     Set-Status "Loaded $count partner policy(ies). Select one, then choose Inbound or Outbound." ([System.Drawing.Color]::DarkGreen)
 
     if ($PartnerTenantId) {
-        $i = $script:cboPartner.Items.IndexOf($PartnerTenantId)
+        $i = -1
+        for ($n = 0; $n -lt $script:Partners.Count; $n++) {
+            if ([string]$script:Partners[$n]['tenantId'] -eq $PartnerTenantId) { $i = $n; break }
+        }
         if ($i -ge 0) { $script:cboPartner.SelectedIndex = $i }
     }
 }
@@ -185,8 +227,14 @@ function Select-Partner {
     $idx = $script:cboPartner.SelectedIndex
     if ($idx -lt 0) { return }
     $script:CurrentPartner  = $script:Partners[$idx]
-    $script:CurrentTenantId = [string]$script:CurrentPartner['tenantId']
-    $script:PartnerUri      = "$GraphBaseUri/$($script:CurrentTenantId)"
+    if ($script:CurrentPartner['_isDefault']) {
+        $script:CurrentTenantId = 'default'
+        $script:PartnerUri      = $DefaultUri
+    }
+    else {
+        $script:CurrentTenantId = [string]$script:CurrentPartner['tenantId']
+        $script:PartnerUri      = "$GraphBaseUri/$($script:CurrentTenantId)"
+    }
     $script:rbInbound.Enabled  = $true
     $script:rbOutbound.Enabled = $true
     Show-DirectionPolicy
@@ -250,6 +298,10 @@ function Update-ProposedView {
     }
     else {
         $newTargets = @($script:ExistingTargets | Where-Object { "$($_['target'])" -ine $appId })
+        # Removing the last app reverts the list to the AllApplications default.
+        if ($newTargets.Count -eq 0) {
+            $newTargets = @(@{ target = 'AllApplications'; targetType = 'application' })
+        }
     }
 
     $ug = if ($script:UsersAndGroups) { $script:UsersAndGroups }
@@ -281,6 +333,34 @@ function Update-ProposedView {
     $script:btnApply.Enabled = $canApply
 }
 
+# ---- Format a Graph error body (hashtable/object/JSON string) into 'code: message' ----
+function Get-GraphErrorMessage {
+    param($ErrorBody)
+    if (-not $ErrorBody) { return $null }
+    $obj = $ErrorBody
+    if ($ErrorBody -is [string]) {
+        try { $obj = $ErrorBody | ConvertFrom-Json -ErrorAction Stop } catch { return $ErrorBody }
+    }
+    $err = if ($obj -is [hashtable]) { $obj['error'] } elseif ($obj.PSObject.Properties['error']) { $obj.error } else { $null }
+    if (-not $err) { return $null }
+    $code = if ($err -is [hashtable]) { $err['code'] } else { $err.code }
+    $msg  = if ($err -is [hashtable]) { $err['message'] } else { $err.message }
+    if ($code -and $msg) { return "${code}: ${msg}" }
+    if ($msg) { return $msg }
+    return $code
+}
+
+# ---- Show a Graph failure in the console + status bar + dialog -------------------------
+function Show-ApplyFailure {
+    param([string] $Detail, $Raw)
+    Write-Host '---- Graph update failed ----' -ForegroundColor Red
+    if ($Raw) { Write-Host "Raw response body:`n$([string]($Raw | Out-String))" -ForegroundColor Red }
+    if (-not $Detail) { $Detail = 'Unknown error (no details returned by Graph).' }
+    Set-Status "Apply failed: $Detail" ([System.Drawing.Color]::Firebrick)
+    [System.Windows.Forms.MessageBox]::Show("The update was rejected by Microsoft Graph:`n`n$Detail", 'Apply failed', 'OK', 'Error') | Out-Null
+    $script:btnApply.Enabled = $true
+}
+
 # ---- Step 6: apply the change and show the result ------------------------------------
 function Invoke-ApplyChange {
     if (-not $script:PartnerSelected -or -not $script:UpdatedSetting) { return }
@@ -304,9 +384,27 @@ function Invoke-ApplyChange {
     Set-Status 'Applying change...' ([System.Drawing.Color]::DarkBlue)
     $script:form.Refresh()
 
+    # Prefer -SkipHttpErrorCheck so a 4xx returns the error JSON body instead of an
+    # exception that discards it (older stacks only surface 'BadRequest').
+    $supportsSkip = $false
+    try { $supportsSkip = (Get-Command Invoke-MgGraphRequest).Parameters.ContainsKey('SkipHttpErrorCheck') } catch { }
+
     try {
         $patchBody = @{ $script:PolicyProperty = $script:UpdatedSetting } | ConvertTo-Json -Depth 15
-        Invoke-MgGraphRequest -Method PATCH -Uri $script:PartnerUri -Body $patchBody -ContentType 'application/json' -ErrorAction Stop | Out-Null
+
+        if ($supportsSkip) {
+            $statusCode = $null
+            $result = Invoke-MgGraphRequest -Method PATCH -Uri $script:PartnerUri -Body $patchBody -ContentType 'application/json' -OutputType Hashtable -SkipHttpErrorCheck -StatusCodeVariable statusCode -ErrorAction Stop
+            if ($statusCode -lt 200 -or $statusCode -ge 300) {
+                $detail = Get-GraphErrorMessage $result
+                if (-not $detail) { $detail = "HTTP $statusCode" }
+                Show-ApplyFailure -Detail $detail -Raw ($result | ConvertTo-Json -Depth 15)
+                return
+            }
+        }
+        else {
+            Invoke-MgGraphRequest -Method PATCH -Uri $script:PartnerUri -Body $patchBody -ContentType 'application/json' -ErrorAction Stop | Out-Null
+        }
 
         # Re-read the authoritative state from Graph and refresh the cache + view.
         $final = Invoke-MgGraphRequest -Method GET -Uri $script:PartnerUri -OutputType Hashtable -ErrorAction Stop
@@ -319,15 +417,37 @@ function Invoke-ApplyChange {
         [System.Windows.Forms.MessageBox]::Show("$action complete for partner $tenant ($($script:DirectionLabel)).`nThe CURRENT policy view now shows the saved result.", 'Result', 'OK', 'Information') | Out-Null
     }
     catch {
-        Set-Status "Apply failed: $($_.Exception.Message)" ([System.Drawing.Color]::Firebrick)
-        $script:btnApply.Enabled = $true
+        Write-Host ($_ | Out-String) -ForegroundColor Red
+
+        # The error JSON body can live in different places depending on the SDK/HTTP stack.
+        $rawBody = $null
+        if ($_.ErrorDetails -and $_.ErrorDetails.Message) {
+            $rawBody = $_.ErrorDetails.Message
+        }
+        $resp = $_.Exception.Response
+        if (-not $rawBody -and $resp) {
+            try {
+                if ($resp.Content -and ($resp.Content -is [System.Net.Http.HttpContent])) {
+                    $rawBody = $resp.Content.ReadAsStringAsync().GetAwaiter().GetResult()
+                }
+                elseif ($resp.PSObject.Methods['GetResponseStream']) {
+                    $reader = New-Object System.IO.StreamReader($resp.GetResponseStream())
+                    $rawBody = $reader.ReadToEnd()
+                }
+            }
+            catch { }
+        }
+
+        $detail = Get-GraphErrorMessage $rawBody
+        if (-not $detail) { $detail = $_.Exception.Message }
+        Show-ApplyFailure -Detail $detail -Raw $rawBody
     }
 }
 
 # ---- Build the form -------------------------------------------------------------------
 $script:form = New-Object System.Windows.Forms.Form
 $script:form.Text = 'Update XTAP Partner Policy (Inbound / Outbound)'
-$script:form.Size = New-Object System.Drawing.Size(800, 760)
+$script:form.Size = New-Object System.Drawing.Size(1000, 940)
 $script:form.StartPosition = 'CenterScreen'
 $script:form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
@@ -340,7 +460,7 @@ $script:form.Controls.Add($script:btnConnect)
 $script:lblStatus = New-Object System.Windows.Forms.Label
 $script:lblStatus.Text = 'Step 1: connect with admin credentials.'
 $script:lblStatus.Location = New-Object System.Drawing.Point(185, 19)
-$script:lblStatus.Size = New-Object System.Drawing.Size(595, 20)
+$script:lblStatus.Size = New-Object System.Drawing.Size(795, 20)
 $script:form.Controls.Add($script:lblStatus)
 
 $lblPartner = New-Object System.Windows.Forms.Label
@@ -351,14 +471,14 @@ $script:form.Controls.Add($lblPartner)
 
 $script:cboPartner = New-Object System.Windows.Forms.ComboBox
 $script:cboPartner.Location = New-Object System.Drawing.Point(140, 55)
-$script:cboPartner.Size = New-Object System.Drawing.Size(500, 24)
+$script:cboPartner.Size = New-Object System.Drawing.Size(700, 24)
 $script:cboPartner.DropDownStyle = 'DropDownList'
 $script:cboPartner.Enabled = $false
 $script:form.Controls.Add($script:cboPartner)
 
 $script:btnRefresh = New-Object System.Windows.Forms.Button
 $script:btnRefresh.Text = 'Refresh'
-$script:btnRefresh.Location = New-Object System.Drawing.Point(655, 53)
+$script:btnRefresh.Location = New-Object System.Drawing.Point(855, 53)
 $script:btnRefresh.Size = New-Object System.Drawing.Size(120, 28)
 $script:btnRefresh.Enabled = $false
 $script:form.Controls.Add($script:btnRefresh)
@@ -398,36 +518,36 @@ $script:form.Controls.Add($script:lblCurHdr)
 
 $script:txtCurrent = New-Object System.Windows.Forms.TextBox
 $script:txtCurrent.Location = New-Object System.Drawing.Point(12, 142)
-$script:txtCurrent.Size = New-Object System.Drawing.Size(764, 165)
+$script:txtCurrent.Size = New-Object System.Drawing.Size(964, 280)
 $script:txtCurrent.Multiline = $true
 $script:txtCurrent.ReadOnly = $true
 $script:txtCurrent.ScrollBars = 'Both'
 $script:txtCurrent.WordWrap = $false
 $script:txtCurrent.BackColor = [System.Drawing.Color]::WhiteSmoke
-$script:txtCurrent.Font = New-Object System.Drawing.Font('Consolas', 9)
+$script:txtCurrent.Font = New-Object System.Drawing.Font('Consolas', 8.25)
 $script:form.Controls.Add($script:txtCurrent)
 
 $lblApp = New-Object System.Windows.Forms.Label
 $lblApp.Text = 'Application (App) ID:'
-$lblApp.Location = New-Object System.Drawing.Point(12, 318)
+$lblApp.Location = New-Object System.Drawing.Point(12, 433)
 $lblApp.AutoSize = $true
 $script:form.Controls.Add($lblApp)
 
 $script:txtApp = New-Object System.Windows.Forms.TextBox
-$script:txtApp.Location = New-Object System.Drawing.Point(150, 315)
+$script:txtApp.Location = New-Object System.Drawing.Point(150, 430)
 $script:txtApp.Size = New-Object System.Drawing.Size(380, 23)
 $script:txtApp.Enabled = $false
 $script:form.Controls.Add($script:txtApp)
 
 $lblAction = New-Object System.Windows.Forms.Label
 $lblAction.Text = 'Action:'
-$lblAction.Location = New-Object System.Drawing.Point(12, 348)
+$lblAction.Location = New-Object System.Drawing.Point(12, 463)
 $lblAction.AutoSize = $true
 $script:form.Controls.Add($lblAction)
 
 # Add/Remove radios live in their own panel so they group independently of direction.
 $pnlAction = New-Object System.Windows.Forms.Panel
-$pnlAction.Location = New-Object System.Drawing.Point(143, 342)
+$pnlAction.Location = New-Object System.Drawing.Point(143, 457)
 $pnlAction.Size = New-Object System.Drawing.Size(240, 28)
 $script:form.Controls.Add($pnlAction)
 
@@ -448,7 +568,7 @@ $pnlAction.Controls.Add($script:rbRemove)
 
 $script:chkBackup = New-Object System.Windows.Forms.CheckBox
 $script:chkBackup.Text = 'Back up current policy to .json before applying'
-$script:chkBackup.Location = New-Object System.Drawing.Point(400, 345)
+$script:chkBackup.Location = New-Object System.Drawing.Point(400, 460)
 $script:chkBackup.Size = New-Object System.Drawing.Size(376, 22)
 $script:chkBackup.Checked = $true
 $script:chkBackup.Enabled = $false
@@ -456,44 +576,44 @@ $script:form.Controls.Add($script:chkBackup)
 
 $script:lblPropHdr = New-Object System.Windows.Forms.Label
 $script:lblPropHdr.Text = 'PROPOSED policy:'
-$script:lblPropHdr.Location = New-Object System.Drawing.Point(12, 378)
+$script:lblPropHdr.Location = New-Object System.Drawing.Point(12, 493)
 $script:lblPropHdr.AutoSize = $true
 $script:form.Controls.Add($script:lblPropHdr)
 
 $script:txtProposed = New-Object System.Windows.Forms.TextBox
-$script:txtProposed.Location = New-Object System.Drawing.Point(12, 398)
-$script:txtProposed.Size = New-Object System.Drawing.Size(764, 165)
+$script:txtProposed.Location = New-Object System.Drawing.Point(12, 513)
+$script:txtProposed.Size = New-Object System.Drawing.Size(964, 280)
 $script:txtProposed.Multiline = $true
 $script:txtProposed.ReadOnly = $true
 $script:txtProposed.ScrollBars = 'Both'
 $script:txtProposed.WordWrap = $false
 $script:txtProposed.BackColor = [System.Drawing.Color]::WhiteSmoke
-$script:txtProposed.Font = New-Object System.Drawing.Font('Consolas', 9)
+$script:txtProposed.Font = New-Object System.Drawing.Font('Consolas', 8.25)
 $script:form.Controls.Add($script:txtProposed)
 
 $script:lblWarn = New-Object System.Windows.Forms.Label
-$script:lblWarn.Location = New-Object System.Drawing.Point(12, 570)
-$script:lblWarn.Size = New-Object System.Drawing.Size(764, 58)
+$script:lblWarn.Location = New-Object System.Drawing.Point(12, 800)
+$script:lblWarn.Size = New-Object System.Drawing.Size(964, 58)
 $script:lblWarn.ForeColor = [System.Drawing.Color]::Firebrick
 $script:form.Controls.Add($script:lblWarn)
 
 $script:chkAck = New-Object System.Windows.Forms.CheckBox
 $script:chkAck.Text = 'I understand this ADDS the app to the BLOCK list'
-$script:chkAck.Location = New-Object System.Drawing.Point(12, 632)
+$script:chkAck.Location = New-Object System.Drawing.Point(12, 862)
 $script:chkAck.Size = New-Object System.Drawing.Size(520, 22)
 $script:chkAck.Visible = $false
 $script:form.Controls.Add($script:chkAck)
 
 $script:btnApply = New-Object System.Windows.Forms.Button
 $script:btnApply.Text = 'Apply'
-$script:btnApply.Location = New-Object System.Drawing.Point(560, 628)
+$script:btnApply.Location = New-Object System.Drawing.Point(760, 858)
 $script:btnApply.Size = New-Object System.Drawing.Size(100, 34)
 $script:btnApply.Enabled = $false
 $script:form.Controls.Add($script:btnApply)
 
 $script:btnClose = New-Object System.Windows.Forms.Button
 $script:btnClose.Text = 'Close'
-$script:btnClose.Location = New-Object System.Drawing.Point(670, 628)
+$script:btnClose.Location = New-Object System.Drawing.Point(870, 858)
 $script:btnClose.Size = New-Object System.Drawing.Size(100, 34)
 $script:form.Controls.Add($script:btnClose)
 
