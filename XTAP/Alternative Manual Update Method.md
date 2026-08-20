@@ -45,6 +45,9 @@ GET https://graph.microsoft.com/v1.0/policies/crossTenantAccessPolicy/partners
 
 Pick the `tenantId` you want to edit.
 
+   <img width="520" height="483" alt="chrome-capture-2026-08-20" src="https://github.com/user-attachments/assets/4d04cada-762c-4c55-986d-0f577250adc1" />
+
+
 ---
 
 ## Step 3 — Review the current policy for one partner
