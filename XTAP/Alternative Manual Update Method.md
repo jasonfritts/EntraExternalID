@@ -77,12 +77,18 @@ GET https://graph.microsoft.com/v1.0/policies/crossTenantAccessPolicy/partners/0
 }
 ```
 
+   <img width="520" height="483" alt="getpartner" src="https://github.com/user-attachments/assets/f746e50d-ed86-489f-bbf2-a26ecff0df08" />
+
+
 Note two things about the direction you plan to edit (`b2bCollaborationInbound` or `b2bCollaborationOutbound`):
 
 - **`applications.accessType`** — `allowed` = allow-list (only listed apps permitted); `blocked` = block-list (listed apps denied). A partner has **one** applications list with **one** `accessType` — you cannot keep both an allow-list and a block-list for the same partner.
 - **`applications.targets`** — the current app entries. **Copy this array** — you'll resend it (plus or minus one app) in the next step.
 
 > If the direction is `null`, there is no explicit configuration yet; the partner inherits the `default` policy. Editing it (Step 4/5) creates an explicit override — include a `usersAndGroups` block too.
+
+   <img width="530" height="482" alt="copypolicy" src="https://github.com/user-attachments/assets/f6b71a9d-dff2-45c2-a216-d0d56c86786d" />
+
 
 ---
 
