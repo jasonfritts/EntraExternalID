@@ -87,7 +87,11 @@ Note two things about the direction you plan to edit (`b2bCollaborationInbound` 
 
 > If the direction is `null`, there is no explicit configuration yet; the partner inherits the `default` policy. Editing it (Step 4/5) creates an explicit override — include a `usersAndGroups` block too.
 
-   <img width="530" height="482" alt="copypolicy" src="https://github.com/user-attachments/assets/f6b71a9d-dff2-45c2-a216-d0d56c86786d" />
+   
+
+https://github.com/user-attachments/assets/96eec064-1a86-420a-b514-85ebcb10fb9a
+
+
 
 
 ---
