@@ -122,10 +122,14 @@ Content-Type: application/json
   }
 }
 ```
-   <img width="530" height="482" alt="20260820-1202-14 2906632" src="https://github.com/user-attachments/assets/42261d38-8564-4925-ba93-fad7398627f8" />
+   
+
+https://github.com/user-attachments/assets/96444a89-145e-4c50-970a-367fa97b8928
 
 
-A successful `PATCH` returns **`204 No Content`**.
+
+
+A successful `PATCH` returns **`204 No Content`**.  If you get a bad JSON error,  Ensure you enclose your patch body in {} brackets
 
 > For **outbound**, use `"b2bCollaborationOutbound"` as the property name instead — the body shape is identical.
 
